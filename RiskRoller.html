@@ -1,0 +1,311 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "DTD/xhtml1-transitional.dtd">
+<html>
+ <head> <title>Risk dice roller and battle simulator</title>
+
+<!-- analytics -->
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-32743454-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
+
+<script language="javascript">
+  function play_sound(sound) {
+    if (document.config.play_sounds.checked) {
+      document.getElementById("dummy_span").innerHTML =
+       "<embed src='"+sound+"' hidden=true autostart=true loop=false>";
+    }
+  }
+  function descending(a,b) {
+    return b - a;
+  }
+  function roll_one_die() {
+    roll = Math.floor((Math.random() * 6) + 1);
+    return roll;
+  }
+  function roll_n_dice(n) {
+    var rolls = new Array();
+    for (i = 0; i < n; i++) {
+      rolls[i] = roll_one_die();
+    }
+    return rolls;
+  }
+  function find_max(a) {
+    var max = 0;
+    for (i = 0; i < n; i++) {
+      if (a[i] > max) { max = a[i]; }
+    }
+    return max;
+  }
+  function array_to_string(a) {
+    var s = a[0];
+    for (i = 1; i < a.length; i++) {
+      s = s + "," + a[i];
+    }
+    return s;
+  }
+  function results(attacker_rolls, defender_rolls) {
+    attacker_rolls.sort(descending);
+    defender_rolls.sort(descending);
+    var attackers_lost = 0;
+    var defenders_lost = 0;
+	defender_rolls[0] = defender_rolls[0] + 1;
+    if (attacker_rolls[0] > defender_rolls[0]) {
+      defenders_lost = defenders_lost + 1;
+    } else {
+      attackers_lost = attackers_lost + 1;
+    };
+    if (attacker_rolls.length > 1 && defender_rolls.length > 1) {
+      if (attacker_rolls[1] > defender_rolls[1]) {
+        defenders_lost = defenders_lost + 1;
+      } else {
+        attackers_lost = attackers_lost + 1;
+      }
+    };
+    return [attackers_lost, defenders_lost];
+  }
+  function battle(attacker_dice, defender_dice) {
+    //play_sound('success.wav');
+    var attacker_rolls = roll_n_dice(attacker_dice);
+    var defender_rolls = roll_n_dice(defender_dice);
+    var attackers_lost, defenders_lost;
+    var r = results(attacker_rolls, defender_rolls);
+    attackers_lost = r[0];
+    defenders_lost = r[1];
+    if (attackers_lost > defenders_lost) {
+      play_sound('/risk/defender_win.wav');
+    } else if (attackers_lost == defenders_lost) {
+      play_sound('/risk/tie.wav');
+    } else {
+      play_sound('/risk/attacker_win.wav');
+    };
+    document.form.attacker_rolls.value = array_to_string(attacker_rolls);
+    document.form.defender_rolls.value = array_to_string(defender_rolls);
+    document.form.attackers_lost.value = attackers_lost;
+    document.form.defenders_lost.value = defenders_lost;
+  }
+  function attach_td(tr, text) {
+    var td = document.createElement('td');
+    td.appendChild(document.createTextNode(text));
+    tr.appendChild(td);
+  }
+  function log_battle(battle_log, i, attacker_rolls, defender_rolls, attackers_lost, defenders_lost) {
+    var tr = document.createElement('tr');
+    attach_td(tr, i);
+    attach_td(tr, array_to_string(attacker_rolls));
+    attach_td(tr, array_to_string(defender_rolls));
+    attach_td(tr, attackers_lost);
+    attach_td(tr, defenders_lost);
+    battle_log.appendChild(tr);
+  }
+  function clear_battle_log() {
+   var parent = document.getElementById("battle_log_container");
+   var battle_log = parent.getElementsByTagName("table")[0];
+   parent.removeChild(battle_log);
+   var new_battle_log = document.createElement("table");
+   new_battle_log.setAttribute("border", 1);
+   var tr = document.createElement("tr");
+   attach_td(tr, "battle");
+   attach_td(tr, "attacker rolls");
+   attach_td(tr, "defender rolls");
+   attach_td(tr, "attackers lost");
+   attach_td(tr, "defenders lost");
+   new_battle_log.appendChild(tr);
+   parent.appendChild(new_battle_log);
+   return new_battle_log;
+  }
+  function simulate() {
+    play_sound('success.wav');
+    var new_battle_log = clear_battle_log ();
+    var count = 0;
+    var attacker_armies = parseInt(document.batch.attacker_armies.value);
+    var defender_armies = parseInt(document.batch.defender_armies.value);
+    var attacker_stop_at =
+      document.batch.attacker_stop_at.value ?
+        parseInt(document.batch.attacker_stop_at.value) : 1;
+    if (attacker_stop_at < 1) {
+      attacker_stop_at = 1;
+    }
+    while ((attacker_armies > attacker_stop_at) && (defender_armies > 0)) {
+      var num_attacker_dice = attacker_armies - 1;
+      if (num_attacker_dice > 3) { num_attacker_dice = 3; };
+      var num_defender_dice = defender_armies;
+      if (num_defender_dice > 2) { num_defender_dice = 2; };
+      /* check to make sure we don't go overboard */
+      if (num_attacker_dice > 1 && num_defender_dice > 1 &&
+        attacker_armies <= attacker_stop_at + 1) {
+        /* attacker could lose 2 armies at once */
+        break;
+      }
+      var attacker_rolls = roll_n_dice(num_attacker_dice);
+      var defender_rolls = roll_n_dice(num_defender_dice);
+      var attackers_lost, defenders_lost;
+      var r = results(attacker_rolls, defender_rolls);
+      attackers_lost = r[0];
+      defenders_lost = r[1];
+      count = count + 1;
+      log_battle(new_battle_log, count, attacker_rolls, defender_rolls, attackers_lost, defenders_lost);
+      attacker_armies = attacker_armies - attackers_lost;
+      defender_armies = defender_armies - defenders_lost;
+    };
+   document.batch.attackers_remaining.value = attacker_armies;
+   document.batch.defenders_remaining.value = defender_armies;
+  }
+ </script>
+
+
+
+<style type="text/css">
+ .output {
+   background:yellow;
+ }
+ #container { width: 90%; margin:10px auto; border: 1px solid gray; }
+ #content_container { width: 95%; margin:20px auto; padding-left:10px; }
+ #top { padding: .5em; background-color:#ddd; border-bottom: 1px solid gray; }
+ #top h1 { padding:0; margin: 0; }
+ #leftcontent { float:left;  width:160px;  margin: 0; padding: 1em;}
+ #content { margin-left:200px; border-left: 1px solid gray; padding: 1em; }
+ #footer { clear: both; margin:0; padding:.5em; color: #333; background-color: #ddd; border-top: 1px solid gray}
+
+</style>
+</head>
+<body>
+ <div id="container">
+  <div id="top">
+   <h1 style="text-align:center">Risk dice roller and battle simulator</h1>
+  </div>
+  <div id="leftcontent">
+   <p style="font-size:x-small">sponsored links:</p>
+   <hr/>
+   <p style="font-size:x-small">
+    iPhone user? Check out Risk Rolled:
+   </p>
+   <a href="http://goodhou.se/riskrolled/"><img style="max-width:160px" src="rrSmall.png"/></a>
+   <hr/>
+   <iframe src="http://rcm.amazon.com/e/cm?t=phaunaorg-20&o=1&p=21&l=ur1&category=toysandgames&banner=0QERA3S6YE7N02MRZX02&f=ifr" width="125" height="125" scrolling="no" border="0" marginwidth="0" style="border:none;" frameborder="0"></iframe>
+<hr/>
+   <iframe src="http://rcm.amazon.com/e/cm?t=phaunaorg-20&o=1&p=8&l=as1&asins=B000AFGV1W&fc1=000000&IS2=1&lt1=_blank&lc1=0000FF&bc1=FFFFFF&bg1=FFFFFF&f=ifr" style="width:120px;height:240px;" scrolling="no" marginwidth="0" marginheight="0" frameborder="0"></iframe>
+ </div>
+
+ <div id="content">
+   <p>Hello, and welcome to my javascript Risk dice roller and battle simulator!
+   I made this because Risk always seemed so tedious when you had to roll the
+   dice over and over again.  With this site, you can just click and see the
+   results.</p>
+
+   <p>I wrote this using javascript so you don't have to stay connected to the
+   internet--you can load the page up, then disconnect your laptop and carry it
+   over to the game.</p>
+
+   <p><a href="mailto:ogunden@phauna.org">Let me know</a> if you have any
+   suggestions!</p>
+  <hr/>
+  <div id="content_container">
+   <form name="config">
+    <table style="border:none">
+      <tr>
+        <td><input type="checkbox" name="play_sounds"/></td>
+        <td>play sounds</td>
+      </tr>
+    </table>
+   </form>
+  <div id="single_battle" style="float:left;">
+  <form name="form">
+   <table style="border:2px dotted black;">
+    <tr><th colspan="2" style="background:#CCFFFF">Single battle mode</th></tr>
+    <tr>
+     <td>attacker rolls:</td>
+     <td><input class="output" readonly="true" type="text" size="10" name="attacker_rolls"/></td>
+    </tr>
+    <tr>
+     <td>defender rolls:</td>
+     <td><input class="output" readonly="true" type="text" size="10" name="defender_rolls"/></td>
+    </tr>
+    <tr>
+     <td>attackers lost:</td>
+     <td><input class="output" readonly="true" type="text" size="10" name="attackers_lost"/></td>
+    </tr>
+    <tr>
+     <td>defenders lost:</td>
+     <td><input class="output" readonly="true" type="text" size="10" name="defenders_lost"/></td>
+    </tr>
+    <tr>
+     <td colspan="2">
+      <input type="button" value="Roll 3/2" name="button" onclick="battle(3,2)"/>
+      <input type="button" value="Roll 2/2" name="button" onclick="battle(2,2)"/>
+      <input type="button" value="Roll 1/2" name="button" onclick="battle(1,2)"/><br/>
+      <input type="button" value="Roll 3/1" name="button" onclick="battle(3,1)"/>
+      <input type="button" value="Roll 2/1" name="button" onclick="battle(2,1)"/>
+      <input type="button" value="Roll 1/1" name="button" onclick="battle(1,1)"/>
+     </td>
+    </tr>
+   </table>
+  </form>
+  </div>
+  <div id="batch">
+  <form name="batch">
+   <table style="border:2px dotted black; margin-left:10px;">
+    <tr><th colspan="2" style="background:#CCFFFF">Batch mode</th></tr>
+    <tr><td colspan="2" style="font-weight:bold;">Input:</td></tr>
+    <tr>
+     <td>attacker armies:</td>
+     <td><input type="text" size="10" name="attacker_armies"/></td>
+    </tr>
+    <tr>
+     <td>defender armies:</td>
+     <td><input type="text" size="10" name="defender_armies"/></td>
+    </tr>
+    <tr>
+     <td>stop with no fewer than this many attacker armies:</td>
+     <td><input type="text" size="10" name="attacker_stop_at"/></td>
+    </tr>
+    <tr>
+     <td>
+      <input type="button" value="Simulate" name="button" onclick="simulate()"/>
+     </td>
+    </tr>
+    <tr><td colspan="2" style="font-weight:bold;">Results:</td></tr>
+    <tr>
+     <td>attackers remaining:</td>
+     <td><input class="output" readonly="true" type="text" size="10" name="attackers_remaining"/></td>
+    </tr>
+    <tr>
+     <td>defenders remaining:</td>
+     <td><input class="output" readonly="true" type="text" size="10" name="defenders_remaining"/></td>
+    </tr>
+    <tr><td colspan="2"> <div id="battle_log_container"> <table></table> </div></td></tr>
+   </table>
+  </form>
+  </div>
+ </div>
+ </div>
+
+
+ <div id="footer">
+  <!-- for sounds dhtml -->
+  <span id="dummy_span"></span>
+<script type="text/javascript"><!--
+google_ad_client = "pub-1686649422838652";
+//728x15, created 12/30/07
+google_ad_slot = "6688991973";
+google_ad_width = 728;
+google_ad_height = 15;
+//--></script>
+<script type="text/javascript"
+src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+</script>
+ </div>
+
+</body>
+</html>
+
